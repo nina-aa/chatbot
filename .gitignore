@@ -1,0 +1,18 @@
+# Environment variables (contains real API keys)
+.env
+
+# Vector stores — regenerated automatically from the PDFs on first run
+*_vectorstore*/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db

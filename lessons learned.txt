@@ -1,0 +1,66 @@
+Here are common "penny wise, pound foolish" mistakes made creating this RAG system:
+
+## 1. **The Overlap Trap** 
+- Thinking: "Smaller chunks = cheaper queries!"
+- Reality: Overlap eats you alive at build time
+- **Lesson**: Always check `chunks_created × avg_chunk_tokens` for embedding cost
+
+## 2. **The Rebuild Trap**
+- Tweaking parameters and repeatedly using `--rebuild`
+- Each rebuild costs embedding tokens again
+- **5 rebuilds of chunk 200 = 2.5M tokens = ~$0.50!**
+- **Lesson**: Test parameters on a small sample PDF first, or keep all vectorstores
+
+## 3. **The "More Context is Better" Trap**
+- Setting k=10 thinking it helps
+- Reality: 10 chunks × 500 chars = 5000 chars = ~1250 tokens **per query**
+- With 20 questions, you've spent more than you saved by optimizing chunks
+- **Lesson**: Start with k=1-2, only increase if answers are incomplete
+
+## 4. **The best model for Everything" Trap**
+- Using best model because "quality matters"
+- Best models are much more expensive 
+- For maintenance manual lookups, lower grade model is usually fine
+- **Lesson**: Use cheap model for retrieval, expensive model only when needed
+
+## 5. **The Multiple PDF Trap**
+- Embedding the same PDF multiple times with slightly different names
+- `manual_v1.pdf`, `manual_v2.pdf`, `manual_final.pdf` all get separate vectorstores
+- **Lesson**: Delete old vectorstores when updating documents
+
+## 6. **The "Fetch More Documents" Trap**
+- Using `search_kwargs={"k": 3}` in retriever but chain_type="map_reduce"
+- Map_reduce calls the LLM **once per chunk** then again to combine
+- 3 chunks = 4 LLM calls instead of 1!
+- **Lesson**: Stick with chain_type="stuff" unless docs are massive
+
+## 7. **The Temperature Experiment Trap**
+- "Let me try temperature 0, 0.3, 0.5, 0.7, 1.0 on the same question"
+- Each attempt costs tokens
+- For factual lookups, temperature barely matters
+- **Lesson**: Temperature is usually irrelevant for retrieval QA
+
+## 8. **The Embedding Model Switch Trap**
+- "Let me try text-embedding-3-large to see if it's better"
+- Creates entirely new vectorstore, costs 3x more
+- Improvement is often marginal for technical docs
+- **Lesson**: Default embeddings are usually fine; test on subset first
+
+## 9. **The "Source Documents" Trap**
+- Setting `return_source_documents=True` 
+- You're not displaying them, but they still get sent in the response
+- Adds hidden tokens to every query
+- **Lesson**: Only return sources if you actually use them
+
+## 10. **The Development Iteration Trap**
+- Testing queries during development without using cached vectorstore
+- Recreating embeddings 20 times while debugging
+- **Lesson**: Use persistent system but check that it's actually loading from cache
+
+
+## 11. **Keyword Matcher Disagrees with FAISS**:
+exact string matching finds "work" in "working" ✓
+But misses semantic matches like:
+
+"doesn't" ≈ "does not"
+"broken" ≈ "malfunction" ≈ "not working"

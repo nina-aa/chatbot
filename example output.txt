@@ -1,0 +1,100 @@
+> python rag_system4.py --pdf HMW90.pdf --chunk-size 500 --chunk-overlap 100
+
+==================================================
+Simple RAG System - Using OpenAI
+==================================================
+
+PDF file: HMW90.pdf
+Chunk size: 500
+Chunk overlap: 100
+Vectorstore location: HMW90_vectorstore_chunk500/
+
+
+==================================================
+No existing vectorstore found. Creating new one...
+(This will use tokens, but only needs to be done once)
+==================================================
+
+Loading PDF: HMW90.pdf
+File size: 2.60 MB
+PDF loaded successfully in 9.16s
+Extracted text: 141,543 characters (138.23 KB)
+Estimated tokens: ~35,385
+Creating text chunks (size=500, overlap=100)...
+Created 358 chunks in 0ms
+Creating embeddings using OpenAI...
+This will use approximately 89500 tokens
+Vector store created successfully in 3.72s
+
+Saving vectorstore to disk at: HMW90_vectorstore_chunk500
+✓ Vectorstore saved in 19ms
+✓ Total setup time: 12.90s
+✓ Next time this PDF will load in ~3-5 seconds!
+QA chain initialized in 625ms
+
+==================================================
+RAG system ready! Type your questions (or 'quit' to exit)
+==================================================
+
+Your question: Relay does not seem to be working as configured
+
+[Processing query...]
+
+
+Answer:
+--------------------------------------------------
+To troubleshoot the issue with the relay not working as configured, you can follow these steps:
+
+1. Check the DIP switch settings to ensure they are correctly configured. Verify if the relay is configured using DIP switches and a rotary switch, or if it's configured through software. Make sure the rotary switch is not between two positions.
+
+2. Consider the effect of hysteresis in DIP mode. You can find more information on this in the "Relay Configuration in DIP Mode" section on page 21 of the manual.
+
+3. Connect to the service port using a computer and use the STATUS command to view the current relay settings.
+
+4. Test the relay functionality by using the RTEST command to ensure it is working properly.
+
+If after following these steps the issue persists, you may need to refer to the manual for further troubleshooting or contact the manufacturer for assistance.
+--------------------------------------------------
+Response time: 2.38s
+
+==================================================
+Token Usage:
+  Input Tokens:  399
+  Output Tokens: 178
+  Total Tokens:  577
+==================================================
+
+Your question: i see FAIL 1: Unknown command what do i do
+
+[Processing query...]
+
+Answer:
+--------------------------------------------------
+If you see the message "FAIL 1: Unknown command," it could be due to the command being one of the advanced commands that are not enabled by default. To resolve this, you can use the PASS 9000 command to enable advanced commands. If you are using remote echo on the transmitter, disable it with the ECHO OFF command to prevent collisions. Additionally, there may be an intermittent connection issue between the transmitter and your terminal, so try issuing the command again.
+--------------------------------------------------
+Response time: 6.24s
+
+==================================================
+Token Usage:
+  Input Tokens:  409
+  Output Tokens: 96
+  Total Tokens:  505
+==================================================
+
+Your question: i see error HTM10 01, what to do
+
+[Processing query...]
+
+Answer:
+--------------------------------------------------
+If you see error HTM10 01, it indicates a continuous communication failure with the HTM10 module. In this case, you should check that the HTM10 module is seated firmly in place. Try removing and reconnecting the module to see if that resolves the issue.
+--------------------------------------------------
+Response time: 2.57s
+
+==================================================
+Token Usage:
+  Input Tokens:  401
+  Output Tokens: 57
+  Total Tokens:  458
+==================================================
+
