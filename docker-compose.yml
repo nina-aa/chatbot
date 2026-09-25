@@ -1,0 +1,25 @@
+# Local Postgres with the pgvector extension, for `--store pgvector`.
+#   docker compose up -d
+#   DATABASE_URL=postgresql://docrag:docrag@localhost:5433/docrag
+# Development credentials only. The host port is 5433 so it does not clash with a Postgres
+# already listening on 5432.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: docrag-db
+    environment:
+      POSTGRES_USER: docrag
+      POSTGRES_PASSWORD: docrag
+      POSTGRES_DB: docrag
+    ports:
+      - "5433:5432"
+    volumes:
+      - docrag-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docrag -d docrag"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  docrag-pgdata:

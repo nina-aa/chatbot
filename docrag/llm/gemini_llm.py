@@ -3,21 +3,27 @@ from google.genai import errors, types
 
 from docrag.llm.base import LLM, AllModelsFailed, LLMResponse
 
-# Quota exhausted, model not available to this key, model overloaded:
+# Quota exhausted (429), model not available to this key (404), model failing or overloaded
+# (500, 502, 503) or not answering in time (504, which is also what our own timeout produces):
 # all mean "this model cannot help right now", so we move on immediately.
-SKIP_CODES = {404, 429, 503}
+SKIP_CODES = {404, 429, 500, 502, 503, 504}
 
 
 class GeminiLLM(LLM):
-    """Tries each model in order. Never waits: a skippable error goes straight to the next."""
+    """Tries each model in order. A skippable error goes straight to the next model; a request
+    that does not answer within `timeout_s` counts as one."""
 
-    def __init__(self, models: list[str], api_key: str | None = None, client=None):
+    def __init__(
+        self, models: list[str], api_key: str | None = None, client=None, timeout_s: float = 120.0
+    ):
         if not models:
             raise ValueError("At least one model is required")
         if client is None:
             if not api_key:
                 raise ValueError("GOOGLE_API_KEY is not set")
-            client = genai.Client(api_key=api_key)
+            # Without a timeout one hung request blocks a whole run. The API refuses deadlines
+            # under 10 s; an expired one comes back as a 504, which is skippable.
+            client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=int(timeout_s * 1000)))
         self._client = client
         self._models = models
 

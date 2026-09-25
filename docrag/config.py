@@ -20,8 +20,12 @@ class Settings(BaseSettings):
     gemini_models: str = DEFAULT_GEMINI_MODELS
     # Open-weights model served through the Gemini API, to show what a
     # local-class model can do.
-    gemma_model: str = "gemma-3-12b-it"
+    # gemma-3-12b-it, the first choice, is no longer offered by the API (404). Of the Gemma models
+    # this key can see, the 26B one (its name says 4B active parameters, a mixture of experts) is the closest
+    # to a local-class model.
+    gemma_model: str = "gemma-4-26b-a4b-it"
     openai_chat_model: str = "gpt-4o-mini"
+    gemini_timeout_s: float = 120.0  # per request; the API accepts 10 s or more
 
     openai_embedding_model: str = "text-embedding-3-small"
     gemini_embedding_model: str = "gemini-embedding-001"
@@ -30,6 +34,10 @@ class Settings(BaseSettings):
     index_dir: Path = Path("data/index")
     embedding_cache_path: Path = Path("data/embedding_cache.sqlite")
     eval_dir: Path = Path("data/eval")
+
+    # Where vectors live: "numpy" (files in index_dir, the default) or "pgvector" (Postgres).
+    store: str = "numpy"
+    database_url: str | None = None  # only needed for the pgvector store
 
     chunk_size: int = 800
     chunk_overlap: int = 150

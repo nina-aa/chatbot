@@ -24,9 +24,9 @@ def make_llm(provider: str, s: Settings) -> LLM:
     if provider == "openai":
         return OpenAILLM(s.openai_api_key, s.openai_chat_model)
     if provider == "gemini":
-        return GeminiLLM(s.gemini_model_chain, s.google_api_key)
+        return GeminiLLM(s.gemini_model_chain, s.google_api_key, timeout_s=s.gemini_timeout_s)
     if provider == "gemma":
-        return GeminiLLM([s.gemma_model], s.google_api_key)
+        return GeminiLLM([s.gemma_model], s.google_api_key, timeout_s=s.gemini_timeout_s)
     raise ValueError(f"Unknown LLM '{provider}'. Choose from {LLM_PROVIDERS}")
 
 

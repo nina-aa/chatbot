@@ -73,3 +73,26 @@ def test_json_mode_is_requested_for_gemini_but_not_for_gemma():
     GeminiLLM(["gemma-3-12b-it"], client=client).generate("q", json_mode=True)
     assert client.configs["gemini-x"][1].response_mime_type == "application/json"
     assert client.configs["gemma-3-12b-it"][1].response_mime_type is None
+
+
+def test_server_errors_and_timeouts_are_skipped_not_fatal():
+    # 500 crashed a whole eval run once; 504 is what an expired request timeout comes back as.
+    for code in (500, 502, 503, 504):
+        client = FakeClient({"a": code, "b": "ok"})
+        assert GeminiLLM(["a", "b"], client=client).generate("q").model == "b", code
+
+
+def test_a_chain_of_broken_models_is_reported_not_raised_as_a_server_error():
+    client = FakeClient({"a": 500, "b": 504})
+    with pytest.raises(AllModelsFailed) as e:
+        GeminiLLM(["a", "b"], client=client).generate("q")
+    assert e.value.errors == {"a": "HTTP 500", "b": "HTTP 504"}
+
+
+def test_the_client_is_built_with_a_request_timeout(monkeypatch):
+    seen = {}
+    monkeypatch.setattr("docrag.llm.gemini_llm.genai.Client", lambda **kw: seen.update(kw) or object())
+    GeminiLLM(["a"], api_key="k", timeout_s=45)
+    assert seen["http_options"].timeout == 45_000
+    GeminiLLM(["a"], api_key="k")
+    assert seen["http_options"].timeout == 120_000

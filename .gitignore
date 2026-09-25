@@ -10,6 +10,8 @@ brief.txt
 chat*
 example*
 eval/runs/
+toy*
+/docs/dev-notes.md
 
 # Python
 __pycache__/
@@ -23,3 +25,8 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Dependencies of the original prototype (kept locally, not tracked)
+requirements-legacy.txt
+
+

@@ -20,17 +20,48 @@ from docrag.retrieval.bm25 import Bm25Retriever, matched_terms
 from docrag.retrieval.dense import DenseRetriever
 from docrag.retrieval.hybrid import HybridRetriever, fuse
 from docrag.retrieval.rerank import LLMReranker, RerankingRetriever
+from docrag.vectorstore.base import VectorStore
 from docrag.vectorstore.numpy_store import NumpyStore
 
 RETRIEVERS = ("dense", "keyword", "hybrid")
+STORES = ("numpy", "pgvector")
 
 # USD per 1M input tokens. Gemini embeddings are free-tier limited, not priced here.
 EMBEDDING_PRICE_PER_M = {"openai:text-embedding-3-small": 0.02, "openai:text-embedding-3-large": 0.13}
 
 
-def index_dir(s: Settings, embedder_name: str, size: int, overlap: int) -> Path:
+def index_name(embedder_name: str, size: int, overlap: int) -> str:
     slug = re.sub(r"[^A-Za-z0-9._-]+", "_", embedder_name)
-    return s.index_dir / f"{slug}_c{size}o{overlap}"
+    return f"{slug}_c{size}o{overlap}"
+
+
+def index_dir(s: Settings, embedder_name: str, size: int, overlap: int) -> Path:
+    return s.index_dir / index_name(embedder_name, size, overlap)
+
+
+def store_kind(args, s: Settings) -> str:
+    kind = getattr(args, "store", None) or s.store
+    if kind not in STORES:
+        raise SystemExit(f"Unknown store '{kind}'. Choose one of: {', '.join(STORES)}.")
+    return kind
+
+
+def open_pgvector(s: Settings, name: str) -> VectorStore:
+    """Connects to Postgres. Imported here so the default numpy path needs neither the
+    packages nor a database."""
+    if not s.database_url:
+        raise SystemExit(
+            "DATABASE_URL is not set. Start Postgres with `docker compose up -d` and set it "
+            "(see .env.example), or leave --store at its default (numpy)."
+        )
+    import psycopg
+
+    from docrag.vectorstore.pgvector_store import PgVectorStore
+
+    try:
+        return PgVectorStore(s.database_url, name)
+    except psycopg.OperationalError as e:
+        raise SystemExit(f"Cannot connect to Postgres: {e}") from e
 
 
 def cmd_index(args, s: Settings) -> None:
@@ -39,6 +70,8 @@ def cmd_index(args, s: Settings) -> None:
     chunks = chunk_pages(pages, size, overlap, s.min_chunk_chars)
     embedder = CachedEmbedder(make_embedder(args.embedder, s), s.embedding_cache_path)
     target = index_dir(s, embedder.name, size, overlap)
+    kind = store_kind(args, s)
+    name = index_name(embedder.name, size, overlap)
 
     texts = [c.embedding_text() for c in chunks]
     new = embedder.count_uncached(texts)
@@ -48,14 +81,19 @@ def cmd_index(args, s: Settings) -> None:
     print(f"Chunks needing new embeddings: {new} (the rest come from the cache)")
     if price is not None and new:
         print(f"Estimated cost: ~${tokens * price / 1e6:.4f} (upper bound, ~{tokens:,} tokens)")
-    print(f"Index location: {target}")
+    print(f"Index location: {target}" if kind == "numpy" else f"Index location: Postgres, index '{name}'")
 
     if not args.yes:
         print("\nDry run only. Nothing embedded. Re-run with --yes to create embeddings.")
         return
-    store = NumpyStore()
-    store.add(chunks, embedder.embed_documents(texts))
-    store.save(target)
+    vectors = embedder.embed_documents(texts)
+    if kind == "pgvector":
+        store = open_pgvector(s, name)
+        store.reset()  # a rebuild replaces the index, like saving over a directory
+    else:
+        store = NumpyStore()
+    store.add(chunks, vectors)
+    store.save(target)  # a no-op for Postgres
     print(f"Saved {len(store)} chunks.")
 
 
@@ -64,8 +102,14 @@ def load_store(args, s: Settings):
     size, overlap = args.chunk_size or s.chunk_size, args.chunk_overlap or s.chunk_overlap
     embedder = make_embedder(args.embedder, s)
     target = index_dir(s, embedder.name, size, overlap)
+    hint = f"Run `python -m docrag index --embedder {args.embedder} --yes"
+    if store_kind(args, s) == "pgvector":
+        store = open_pgvector(s, index_name(embedder.name, size, overlap))
+        if not len(store):
+            raise SystemExit(f"No index in Postgres. {hint} --store pgvector`.")
+        return store, embedder
     if not target.exists():
-        raise SystemExit(f"No index at {target}. Run `python -m docrag index --embedder {args.embedder} --yes`.")
+        raise SystemExit(f"No index at {target}. {hint}`.")
     return NumpyStore.load(target), embedder
 
 
@@ -237,7 +281,7 @@ def cmd_eval(args, s: Settings) -> None:
     config = {
         "golden": str(args.golden), "n_questions": len(items), "embedder": embedder_name,
         "chunk_size": args.chunk_size or s.chunk_size, "chunk_overlap": args.chunk_overlap or s.chunk_overlap,
-        "retriever": args.retriever or s.retriever,
+        "store": store_kind(args, s), "retriever": args.retriever or s.retriever,
         "rerank": (args.rerank_llm if args.rerank else None),
         "device_filter": not args.no_device_filter, "top_k": k, "min_score": s.min_score if args.min_score is None else args.min_score,
         "llm": None if args.retrieval_only else args.llm, "judge": judge_name,
@@ -281,6 +325,10 @@ def main() -> None:
         p.add_argument("--embedder", choices=EMBEDDER_PROVIDERS, default="openai")
         p.add_argument("--chunk-size", type=int)
         p.add_argument("--chunk-overlap", type=int)
+        p.add_argument(
+            "--store", choices=STORES,
+            help="where vectors live: numpy (files, default) or pgvector (Postgres, needs DATABASE_URL)",
+        )
 
     def retrieval(p):
         p.add_argument("--retriever", choices=RETRIEVERS, help="dense (default), keyword (BM25) or hybrid")
