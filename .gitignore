@@ -3,6 +3,13 @@
 
 # Vector stores — regenerated automatically from the PDFs on first run
 *_vectorstore*/
+# Indexes, embedding cache, eval runs
+data/
+.claude/
+brief.txt
+chat*
+example*
+eval/runs/
 
 # Python
 __pycache__/
