@@ -4,7 +4,7 @@
 
 - Python 3.12 or newer.
 - An OpenAI API key (answers and embeddings). A Google API key is optional (Gemini answers and the default judge for OpenAI answers).
-- The equipment manuals as PDFs in `pdfs/`. They are not in the repository (copyright). The golden set (`eval/golden.jsonl`) refers to `HMW90 user guide.pdf`, `HPP271 user guide.pdf` and `WAA151 user guide.pdf`; put those three there to reproduce the results.
+- The manuals are in `pdfs/`: `HMW90 user guide.pdf`, `HPP271 user guide.pdf` and `WAA151 user guide.pdf`, all publicly available. The golden set (`eval/golden.jsonl`) refers to these three, so they must stay there to reproduce the results.
 - Docker only if you want the Postgres store.
 
 ## Install

@@ -16,16 +16,16 @@ def test_extract_json_rejects_text_without_json():
         extract_json("no braces here")
 
 
-TEXT = "The  extruder must be\nheated to the set temperature before starting the screw."
+TEXT = "The  compressor must be\nheated to the set temperature before starting the screw."
 
 
 def test_quote_matching_ignores_case_and_whitespace():
-    assert quote_in_text("extruder must be heated to the set temperature", TEXT)
-    assert quote_in_text("THE EXTRUDER MUST BE HEATED", TEXT)
+    assert quote_in_text("compressor must be heated to the set temperature", TEXT)
+    assert quote_in_text("THE COMPRESSOR MUST BE HEATED", TEXT)
 
 
 def test_quote_matching_rejects_invented_or_paraphrased_text():
-    assert not quote_in_text("the extruder needs warming up first", TEXT)
+    assert not quote_in_text("the compressor needs warming up first", TEXT)
 
 
 def test_too_short_quote_proves_nothing():
@@ -33,8 +33,8 @@ def test_too_short_quote_proves_nothing():
 
 
 def test_ellipsis_quote_needs_every_segment_present():
-    assert quote_in_text("extruder must be ... before starting the screw", TEXT)
-    assert not quote_in_text("extruder must be ... and then cooled down slowly", TEXT)
+    assert quote_in_text("compressor must be ... before starting the screw", TEXT)
+    assert not quote_in_text("compressor must be ... and then cooled down slowly", TEXT)
 
 
 def test_verify_splits_verified_and_rejected():

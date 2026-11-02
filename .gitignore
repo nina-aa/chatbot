@@ -6,7 +6,6 @@
 # Indexes, embedding cache, eval runs
 data/
 .claude/
-brief.txt
 chat*
 example*
 eval/runs/

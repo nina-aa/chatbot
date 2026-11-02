@@ -94,7 +94,7 @@ def test_first_relevant_rank():
 
 # ---- end to end with fakes -----------------------------------------------------------
 
-PANEL = "The screw speed is set on the operator panel under the Extruder menu."
+PANEL = "The screw speed is set on the operator panel under the Compressor menu."
 PINOUT = "Pin 1 carries the positive supply and pin 2 the ground."
 
 ITEMS = [

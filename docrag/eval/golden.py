@@ -1,4 +1,4 @@
-"""The golden set: questions with known answers and known source pages, written by hand."""
+"""The golden set: questions with known answers and known source pages, written in advance."""
 
 import json
 from pathlib import Path

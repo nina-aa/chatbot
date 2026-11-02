@@ -161,7 +161,7 @@ def test_hybrid_rescues_an_exact_match_the_dense_search_ranked_low():
 
 # ---- pipeline with other retrievers --------------------------------------------------
 
-TEXTS = [chunk("0", "The screw speed is set on the operator panel under the Extruder menu.", page=7),
+TEXTS = [chunk("0", "The screw speed is set on the operator panel under the Compressor menu.", page=7),
          chunk("1", "Pin 1 carries the positive supply and pin 2 the ground.", page=9)]
 GOOD = ("d.pdf", 7, "screw speed is set on the operator panel")
 

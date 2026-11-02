@@ -78,6 +78,7 @@ Append-only, oldest first. It records what was decided, why, what happened, and 
 ### 14. What stays out of the public repository
 - **Decision (owner).** The evaluation runs (`eval/runs/`) are not for GitHub because they contain manual text in the saved chunks, and the manuals (`pdfs/`) are left out because their copyright status is unclear. The old top-level PDFs remain in the first commit's history.
 - **Consequence.** Cloning the repository is not enough to reproduce the numbers: the manuals must be added by hand (see the setup guide). The CI tests were written to skip cleanly without them.
+- **Update.** The part about the manuals was reversed, see entry 16.
 
 ### 15. Gemma as the local-class stand-in: never called until the end (a gap that hid a dead default)
 - **Decision (entry 1).** Reach Gemma through the Gemini API instead of running a local model. The path was written and unit-tested with fakes, and never called.
@@ -85,4 +86,7 @@ Append-only, oldest first. It records what was decided, why, what happened, and 
 - **A slip along the way.** The first attempt at a hard cutoff used a thread pool whose context manager waits for the stuck call, so it did not cut anything off and cost several minutes; a daemon thread with a hard exit did.
 - **Verdict.** Wrong to leave a provider path uncalled for the whole project: "tests pass with fakes" said nothing about a model name that no longer existed. The claim "Gemma shows what a local-class model can do" is now backed by one real answer and one honest finding that it is slow and flaky here, not by a benchmark.
 
-
+### 16. The manuals are public and stay in the repository
+- **Decision (owner).** The three manuals in `pdfs/` are publicly available, so they are committed. This replaces the manuals part of entry 14; the evaluation runs stay out.
+- **Consequence.** Cloning the repository is enough to rebuild the index and rerun the evaluation, given API keys.
+- **Verdict.** Entry 14 and the setup guide had said the manuals were not in the repository while git tracked them. The setup guide is corrected.

@@ -62,8 +62,8 @@ def _filled(new_store, specs):
 
 
 SPECS = [
-    ("a.pdf", "cable insulation thickness"),
-    ("a.pdf", "extruder screw speed"),
+    ("a.pdf", "paint coating thickness"),
+    ("a.pdf", "compressor screw speed"),
     ("b.pdf", "network cable pinout"),
     ("b.pdf", "screw terminal torque"),
 ]
@@ -71,8 +71,8 @@ SPECS = [
 
 def test_search_ranks_relevant_chunk_first_and_scores_descend(new_store):
     store, emb = _filled(new_store, SPECS)
-    hits = store.search(emb.embed_query("extruder screw speed"), 3)
-    assert hits[0].chunk.text == "extruder screw speed"
+    hits = store.search(emb.embed_query("compressor screw speed"), 3)
+    assert hits[0].chunk.text == "compressor screw speed"
     assert [h.score for h in hits] == sorted((h.score for h in hits), reverse=True)
 
 

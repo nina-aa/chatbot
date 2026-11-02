@@ -7,7 +7,7 @@ from docrag.retrieval.dense import DenseRetriever
 from docrag.vectorstore.numpy_store import NumpyStore
 from tests.conftest import FakeEmbedder
 
-PANEL = "The screw speed is set on the operator panel under the Extruder menu."
+PANEL = "The screw speed is set on the operator panel under the Compressor menu."
 PINOUT = "Pin 1 carries the positive supply and pin 2 the ground."
 
 
@@ -94,17 +94,17 @@ def test_quote_from_wrong_page_is_rejected():
 def test_each_statement_gets_its_own_verified_source():
     reply = statements(
         ("Set it on the panel.", "m.pdf", 7, "screw speed is set on the operator panel"),
-        ("Use the Extruder menu.", "m.pdf", 7, "under the Extruder menu"),
+        ("Use the Compressor menu.", "m.pdf", 7, "under the Compressor menu"),
         ("Pin 1 is the supply.", "m.pdf", 9, "Pin 1 carries the positive supply"),
     )
     result = pipeline(ScriptedLLM(reply)).ask("q")
     assert result.status == "answered"
     assert [(s.text, s.citation.page, s.citation.quote) for s in result.statements] == [
         ("Set it on the panel.", 7, "screw speed is set on the operator panel"),
-        ("Use the Extruder menu.", 7, "under the Extruder menu"),
+        ("Use the Compressor menu.", 7, "under the Compressor menu"),
         ("Pin 1 is the supply.", 9, "Pin 1 carries the positive supply"),
     ]
-    assert result.answer == "Set it on the panel. Use the Extruder menu. Pin 1 is the supply."
+    assert result.answer == "Set it on the panel. Use the Compressor menu. Pin 1 is the supply."
     assert len(result.citations) == 3
 
 
