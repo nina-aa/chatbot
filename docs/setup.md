@@ -1,4 +1,6 @@
-# Setup guide
+# Setup, usage and tests
+
+How to install, run, evaluate and test docrag. What the project is and how well it works is in the [README](../README.md).
 
 ## Requirements
 
@@ -40,6 +42,24 @@ A device is required. Without one, nothing is processed and the CLI asks "Which 
 
 Useful flags: `--llm openai|gemini|gemma`, `--retriever dense|keyword|hybrid`, `--rerank` (an LLM re-orders the candidates; costs an extra call per question), `--top-k N`.
 
+**Devices.** A manual covering several devices yields one name each. To name them yourself, put a `devices.json` in `pdfs/`: `{"file.pdf": ["NAME", "OTHER"]}`. Without a known device the question is not embedded, retrieved or sent to an LLM.
+
+**Gemini fallback.** With `--llm gemini`, models in `GEMINI_MODELS` are tried in order; a 429, 404, 500, 502, 503 or 504 (or a request timeout, `GEMINI_TIMEOUT_S`) moves to the next model, and the answering model is printed.
+
+## Retrieval options
+
+Three interchangeable retrievers, chosen with `--retriever` on `ask` and `eval`:
+
+| | |
+|---|---|
+| `dense` (default) | embed the question, nearest chunks by cosine similarity |
+| `keyword` | Okapi BM25 over the chunk text, section and document name. English filler words are ignored, numbers and codes such as `HTM10` or `0706hex` are kept. Term statistics come from the chosen device's manual only |
+| `hybrid` | both, fused with reciprocal rank fusion (only ranks matter, so no score scaling) |
+
+**Reranking.** `--rerank` (with any retriever) fetches `rerank_pool` candidates (default 8), has an LLM rate each 0 to 3 for how well it helps answer the question, and keeps the best `top_k`. `--rerank-llm` picks the model (default `openai`). It costs one extra LLM call per question, reported separately in the trace and in eval. If the reranker fails, the original order is kept and a warning is logged.
+
+`python -m docrag search --device HPP271 "question"` prints the three rankings side by side (scores, matched keywords, and where each fused hit stood in the other two lists). It calls no LLM, only embeds the query.
+
 ## Evaluate
 
 ```bash
@@ -50,6 +70,31 @@ python -m docrag eval eval/golden.jsonl --llm openai                  # 40 quest
 ```
 
 Runs are saved under `data/eval/<timestamp>_<label>/` (`results.jsonl` and `summary.json`). Every answering run spends API tokens; a full 40-question run costs roughly one cent for the answers. Retrieval-only runs cost only the query embeddings (a fraction of a cent), plus the reranker's calls with `--rerank`.
+
+More options:
+
+```bash
+python -m docrag eval eval/golden.jsonl --retrieval-only --retriever hybrid   # hit@k, precision, recall, MRR; no answer LLM
+python -m docrag eval eval/golden.jsonl --llm gemma --judge openai             # the judge defaults to a different family than --llm
+python -m docrag eval eval/golden.jsonl --llm openai --judge none
+python -m docrag eval eval/golden_sample10.jsonl --llm openai --retriever hybrid --rerank
+python -m docrag eval eval/golden_dense_misses.jsonl --llm openai --retriever hybrid --rerank   # the questions dense misses
+```
+
+The smoke set (3 questions) and the sample (a seeded random sample stratified by device: 8 answerable, 2 unanswerable) are copied unedited from the golden set, and tests keep them in sync, pages included.
+
+**Golden set format.** JSONL, one question per line:
+
+```json
+{"id": "q1", "question": "...", "device": "HMW90", "answerable": true, "reference_answer": "...", "relevant": [{"doc": "HMW90 user guide.pdf", "pages": [38, 39]}]}
+{"id": "q2", "question": "a question the manuals do not answer", "device": "HMW90", "answerable": false}
+```
+
+Page numbers are **PDF page indexes** (what a PDF viewer's page box shows), not printed page numbers; for HMW90 the index is the printed number plus 2. Every item needs a `device` (it is what the user would type), and the eval refuses to start if one is missing or unknown. `--no-device-filter` searches all manuals instead, to measure what the filter adds.
+
+**What is measured.** hit@k, precision@k, page recall@k and MRR; share answered, false refusals, judged correctness and faithfulness; whether a citation lands on a relevant page; share of unanswerable questions correctly refused (and the hallucination rate); dropped statements, errors, models used; latency and tokens/cost split into answering, reranking and judging. What each one means is in [evaluation-explained.md](evaluation-explained.md).
+
+**What is saved.** `results.jsonl` holds everything per question: hits with their dense, keyword and rerank ranks, status and reason, verified and dropped statements, judge verdict and reason, and the trace. `summary.json` holds the config, git commit and metrics. Runs can be compared and re-scored offline. Set `$EVAL_DIR` to save elsewhere.
 
 ## Use Postgres instead of files (optional)
 
@@ -67,6 +112,22 @@ DATABASE_URL=postgresql://docrag:docrag@localhost:5433/docrag python -m pytest -
 ```
 
 Stop the database with `docker compose down` (add `-v` to delete the stored data).
+
+Checked against a real Postgres: 720 searches on the real index and full evaluation runs returned the same chunks in the same order as the in-memory store. Search takes about 3 to 7 ms against 0.2 to 0.3 ms in memory. Measurements, design and gaps: [pgvector.md](pgvector.md).
+
+## Tests
+
+```bash
+python -m pytest          # 172 tests, all with fakes: no API calls, no PDFs, index or database needed (13 more are skipped without a database)
+
+# The Postgres store tests (skipped unless DATABASE_URL is set):
+docker compose up -d
+DATABASE_URL=postgresql://docrag:docrag@localhost:5433/docrag python -m pytest -m integration
+```
+
+GitHub Actions (`.github/workflows/tests.yml`) runs them on every push to `main` and on pull requests, in a clean Python 3.12 environment with the API keys set to blank, so a test that tried to call OpenAI or Gemini would fail instead of spending tokens.
+
+The original single-file prototype is kept as `rag_system7.py`.
 
 ## Configuration
 
