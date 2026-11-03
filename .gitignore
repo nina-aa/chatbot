@@ -11,6 +11,7 @@ example*
 eval/runs/
 toy*
 /docs/dev-notes.md
+/docs/evaluation-notes.md
 
 # Python
 __pycache__/
