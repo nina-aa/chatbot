@@ -1,6 +1,6 @@
 # Evaluation explained
 
-How the system is measured, what the results are, and why it fails where it does. No background in search or machine learning is assumed. Every number comes from the last full run on the current index (`data/eval/20260925-091624_…`: 40 questions, dense retrieval, `gpt-4o-mini` answers, Gemini judge) unless stated otherwise. The complete history is in [results.md](results.md).
+How the system is measured, what the results are, and why it fails where it does. No background in search or machine learning is assumed. Every number comes from the full run of 2026-09-25 on the current index (40 questions, dense retrieval, `gpt-4o-mini` answers, Gemini judge) unless stated otherwise. The complete history is in [results.md](results.md).
 
 ## Contents
 
@@ -41,13 +41,10 @@ A **chunk** is one passage of up to 800 characters. The manuals are split into 5
 | Embeddings (search) | `text-embedding-3-small` | OpenAI. Turns chunks and questions into numbers |
 | Writing answers | `gpt-4o-mini`, temperature 0 | OpenAI's low-cost "mini" tier. A normal production model, but not its most capable one. Used for all 40 questions |
 | Judging answers | `gemini-3.1-flash-lite` (23 answers), `gemini-3.5-flash-lite` (1) | Google's light tier, on the free tier. A different family from the answer model |
-| Reranking (optional) | `gpt-4o-mini` | Not used in the main run |
-| Local-class stand-in | `gemma-4-26b-a4b-it` | Tried on 3 questions only, through an API |
-| Writing the test questions | Claude Sonnet 5 | Through Claude Code, the same assistant that helped build the system. |
 
 ## How it is tested
 
-**The golden set** (`eval/golden.jsonl`) is the answer key: 40 questions written in advance, mostly by Claude, 30 the manuals can answer and 10 they cannot. The model was Claude Sonnet 5, through Claude Code. Each answerable question has the pages holding the answer and a reference answer. Without an answer key, "it looks good" is the only measure, and that does not survive changing anything.
+**The golden set** (`eval/golden.jsonl`) is the answer key: 40 questions written in advance, mostly by Claude (Claude Sonnet 5, through Claude Code), 30 the manuals can answer and 10 they cannot. Each answerable question has the pages holding the answer and a reference answer. Without an answer key, "it looks good" is the only measure, and that does not survive changing anything.
 
 The questions are deliberately mixed: clean ones ("How do I reset the HMW90 to factory settings?"), vague ones ("sensor info is wrong"), and bare codes ("Internal 1"). The 10 unanswerable ones sound reasonable but are not in the manuals ("Can the HMW90 be connected to a KNX building automation bus?").
 
@@ -67,16 +64,10 @@ Every one of the 40 questions lands in exactly one of these outcomes:
 
 The metrics are scored at two levels. **Decision** asks whether answering or refusing was the right call. **Answer** asks whether the answer was right. Precision is about trust (when it answers, is it right?), recall about usefulness (when an answer exists, does it give it?).
 
-| Level | Accuracy | Precision | Recall | F1 |
-|---|---|---|---|---|
-| **Decision:** should it answer or refuse? | 85% (34 of 40) | 100% (24 of 24) | 80% (24 of 30) | 89% |
-| **Answer:** was the answer right? | 60% (24 of 40) | 58% (14 of 24) | 47% (14 of 30) | 52% |
-
-| Retrieval (dense search) | Result |
-|---|---|
-| hit@4: a right page was among the 4 chunks | 93% (28 of 30) |
-| page recall@4: share of the right pages found | 89% |
-| MRR: how high the first right chunk was | 0.81 |
+| Level | Precision | Recall |
+|---|---|---|
+| **Decision:** should it answer or refuse? | 100% (24 of 24) | 80% (24 of 30) |
+| **Answer:** was the answer right? | 58% (14 of 24) | 47% (14 of 30) |
 
 **Why 80% answered but only 47% correct.** An answer is shown when the model says the text is sufficient and at least one quote passes the check. Nothing checks completeness at answer time, so a partial answer counts as answered. Only the judge, which needs a reference answer and therefore runs only during evaluation, marks it not correct. That is the gap of 10 questions.
 
@@ -91,17 +82,10 @@ The metrics are scored at two levels. **Decision** asks whether answering or ref
 | Answered about the wrong fault, right page but wrong table row | Answer writing | `gpt-4o-mini`, reading tables flattened by `pypdf` | 2 | `hmw90-internal-3-sentence`, `waa151-bent-connector` |
 | **Correct answer thrown away** by the quote check | Quote check | Code, no model (`docrag/rag/verify.py`) | 2 | `hpp271-filtering-factor`, `hpp271-insight-reset-loop` |
 | Search did not find the right page | Search | `text-embedding-3-small` | 2 | `hmw90-internal-1`, `hpp271-chemicals-slow` |
-| Answer was right for the narrow question asked, but the reference answer also listed steps the user did not ask about, so the judge marked it not correct | Evaluation | Judge `gemini-3.1-flash-lite`, comparing against reference answers written by Claude Sonnet 5 | 2 | `hmw90-htm10-05`, `hpp271-no-change-5min` |
+| Answer was right for the narrow question asked, but the reference answer also listed steps the user did not ask about | Evaluation | Judge `gemini-3.1-flash-lite`, against the reference answers | 2 | `hmw90-htm10-05`, `hpp271-no-change-5min` |
 | **Total** | | | **16** | |
 
-By stage and model:
-
-| Stage | Model or code | Failures |
-|---|---|---|
-| Answer writing | `gpt-4o-mini` | **10** |
-| Quote check | Code, no model | **2** |
-| Search | `text-embedding-3-small` | **2** |
-| Evaluation | Judge `gemini-3.1-flash-lite`, reference answers by Claude Sonnet 5 | **2** |
+By stage: 10 in answer writing, 2 in the quote check, 2 in search and 2 in grading.
 
 **What this means.** Only 2 of 16 failures were search failures, so better search will not move 47% much. The effort belongs in the answer step and the quote check. The two thrown-away correct answers are the cheapest to fix: the quote did not match any single chunk word for word, likely because it straddles two chunks. The wrong-fault answers pass every check because the quote check only proves the words exist on the cited page, and the right page holds the whole troubleshooting table.
 
@@ -118,15 +102,13 @@ The judge gives only yes or no, and it graded the same behaviour differently in 
 
 The official numbers do not change. The review shows what happens under fairer grading:
 
-| What counts as a good answer | Good answers | Precision (of 24) | Recall (of 30) | F1 | Accuracy (of 40) |
-|---|---|---|---|---|---|
-| **Judge, official** | 14 | 58% | 47% | 52% | 60% |
-| Judge + acceptable | 16 | 67% | 53% | 59% | 65% |
-| Judge + acceptable + partial usable | 20 | 83% | 67% | 74% | 75% |
+| What counts as a good answer | Good answers | Precision (of 24) | Recall (of 30) |
+|---|---|---|---|
+| **Judge, official** | 14 | 58% | 47% |
+| Judge + acceptable | 16 | 67% | 53% |
+| Judge + acceptable + partial usable | 20 | 83% | 67% |
 
 So the honest summary is a range: **between 14 and 20 of 30 answered usefully, and 4 of 24 answers should not be followed.** This review was done by Claude, and none of the 14 correct answers was downgraded.
-
-The judge also rated all 24 answers faithful. That is too generous: no answer contained made-up text, but on a strict reading about 21 of 24 were faithful, because a real quote applied to the wrong fault still makes a false claim.
 
 ## Retrieval
 
@@ -151,9 +133,7 @@ The system can be wrong in two ways:
 
 Making the system stricter reduces the first and raises the second, so in practice you cannot get both to zero. This project deliberately accepts the second kind: 0 of 10 invented answers, at the price of 20% false refusals. That is why refusals are a stated design decision and not a bug.
 
-All 10 correct refusals came from the model itself, not from the quote check or a score threshold.
-
-**A limit of this claim.** Refusing protects against questions the manual cannot answer. It does not protect against a wrong or partial answer to a question it can answer, and 4 of the 24 answers should not be followed.
+**A limit of this claim.** Refusing protects against questions the manual cannot answer. It does not protect against a wrong or partial answer to a question it can answer, as the [hand review](#hand-review-of-the-answers) shows.
 
 **Why not refuse based on the search score?** It seems natural: a low match means no answer. The saved run shows it would not work. The best match for unanswerable questions (median 0.60, range 0.46 to 0.69) is as high as or higher than for answerable ones (median 0.53, range 0.29 to 0.79). A question about KNX still resembles the manual's text about connections. Search scores measure "similar topic", not "contains the answer". That is why the `min_score` gate stays off.
 
@@ -183,27 +163,18 @@ So small differences in the tables are not treated as real. Large gaps are: 93% 
 
 | Change | Why | Effort |
 |---|---|---|
-| **Grade answers in four levels**, not yes or no: acceptable, partial and usable, not usable, wrong | Yes or no treats a harmless omission like a wrong fault, and the judge applies it inconsistently. This is the most important change | Change the judge prompt and rerun it; tokens needed |
-| **Score facts.** Split each reference answer into facts, marked required or optional, and report the share covered | `hmw90-fail1` becomes 1 of 3 facts, not just "not correct". It gives a real completeness number | Rewrite 30 reference answers |
-| **Match reference answers to the question** | `hpp271-no-change-5min` failed for something the user did not ask | Review 30 reference answers |
-| **Ask the judge whether each claim applies to the question** | Would catch the wrong-fault answers now passed as faithful | Change the judge prompt |
-| **Pin one judge model** | Removes one source of noise from comparisons | Set `GEMINI_MODELS` to one model |
-| **Report two levels**, decision and answer, with TP, FP, FN and TN | One rate hides whether the system refused or answered badly | Small change in `docrag/eval/runner.py` |
-| **Record the failure reason per question** | The table above was built by hand and should come out of each run | Small, after grading exists |
-| **Replace precision@4** with capped precision and context recall | Precision@4 depends on a number we chose, and pages are too coarse | Capped precision is cheap; context recall needs fact labels |
-| **Label relevant chunks, not only pages**, and allow several right places | Page 31 counts as FP although it gave the answer, and the right page can have the wrong row | Slow, by hand |
-| **Use questions from real users**, and more unanswerable ones | The current set is small and mostly written by Claude | Slow, needs users |
+| **Graded, fact-based judging.** Split each reference answer into required and optional facts, keep only facts that match the question, report the share covered, and grade in four levels like the hand review | The yes-or-no judge graded the same behaviour differently, failed 2 answers for steps the user never asked about, and passed wrong-fault answers as faithful. Usefully answered is a range of 14 to 20, not one number | New judge prompt and 30 rewritten reference answers |
+| **An independent test set:** questions from real users, and many more unanswerable ones | 0 of 10 invented answers only bounds the true rate below about 26%, and the current questions were written in advance, not by users | Slow, needs users |
+| **Label relevant chunks, not only pages** | Page 31 counts as a miss although it gave the answer, and a right page can still give the wrong table row. Chunk labels would also allow context recall, the best-fitting retrieval metric | Slow, by hand |
 
-**In the system:**
+**In the system,** cheapest first:
 
 | Change | Fixes | Tradeoff |
 |---|---|---|
 | **Check quotes against the whole cited page** | 1 or 2 correct answers thrown away; not tested | Weakens the check slightly |
-| **Compare prompts** that ask for every listed cause | 5 answers that left out details | May bring back padding |
+| **Better prompt** - "answer only what was asked, but include every cause or step the manual lists for it" | 5 answers that left out details | May bring back padding |
 | **Test a stronger answer model** | Possibly left-out details, wrong rows and refusals | Higher cost, which is tiny now |
 | **Warn the user** that the manual may list more causes, and link the section | Partial answers that look complete | Slightly longer answers |
 | **Ask a clarifying question** for vague input | 3 refused vague questions | New behaviour to build and test |
 | **Extract tables with their structure** | Possibly the 2 wrong-fault answers | Needs a new parser and a re-embed |
 | **Improve search for codes and synonyms** | 2 search misses | Reranking fixes these but loses 2 others |
-
-5 of the 16 failures are left-out details. The obvious next experiment is a prompt that says "answer only what was asked, but include every cause or step the manual lists for it".
